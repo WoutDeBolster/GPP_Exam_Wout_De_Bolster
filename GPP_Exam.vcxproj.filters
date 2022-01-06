@@ -3,9 +3,12 @@
   <ItemGroup>
     <ClCompile Include="Plugin.cpp" />
     <ClCompile Include="stdafx.cpp" />
+    <ClCompile Include="EliteBehaviorTree\EBehaviorTree.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="EliteData\EBlackboard.h" />
+    <ClInclude Include="EliteBehaviorTree\EBehaviorTree.h" />
   </ItemGroup>
 </Project>
