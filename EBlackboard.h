@@ -46,7 +46,11 @@ namespace Elite
 		~Blackboard()
 		{
 			for (auto el : m_BlackboardData)
-				SAFE_DELETE(el.second);
+			{
+				delete(el.second);
+				el.second = nullptr;
+			}
+
 			m_BlackboardData.clear();
 		}
 

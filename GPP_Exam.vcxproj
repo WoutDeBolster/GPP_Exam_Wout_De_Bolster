@@ -182,13 +182,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="EliteBehaviorTree\EBehaviorTree.h" />
-    <ClInclude Include="EliteData\EBlackboard.h" />
+    <ClInclude Include="EBehaviorTree.h" />
+    <ClInclude Include="EBlackboard.h" />
+    <ClInclude Include="EDecisionMaking.h" />
     <ClInclude Include="Plugin.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="EliteBehaviorTree\EBehaviorTree.cpp" />
+    <ClCompile Include="EBehaviorTree.cpp" />
     <ClCompile Include="Plugin.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

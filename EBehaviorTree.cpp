@@ -1,5 +1,7 @@
 //=== General Includes ===
 #include "stdafx.h"
+#include "EBehaviorTree.h"
+
 using namespace Elite;
 
 //-----------------------------------------------------------------

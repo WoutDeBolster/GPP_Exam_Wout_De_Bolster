@@ -8,7 +8,7 @@
 #define ELITE_BEHAVIOR_TREE
 
 //--- Includes ---
-#include "framework/EliteAI/EliteData/EBlackboard.h"
+#include "EDecisionMaking.h"
 
 namespace Elite
 {
@@ -49,7 +49,10 @@ namespace Elite
 		virtual ~BehaviorComposite()
 		{
 			for (auto pb : m_ChildrenBehaviors)
-				SAFE_DELETE(pb);
+			{
+				delete(pb);
+				pb = nullptr;
+			}
 			m_ChildrenBehaviors.clear();
 		}
 
@@ -132,8 +135,10 @@ namespace Elite
 			: m_pBlackBoard(pBlackBoard), m_pRootComposite(pRootComposite) {};
 		~BehaviorTree()
 		{
-			SAFE_DELETE(m_pRootComposite);
-			SAFE_DELETE(m_pBlackBoard); //Takes ownership of passed blackboard!
+			delete(m_pRootComposite);
+			m_pRootComposite = nullptr;
+			delete(m_pBlackBoard); //Takes ownership of passed blackboard!
+			m_pBlackBoard = nullptr;
 		};
 
 		virtual void Update(float deltaTime) override

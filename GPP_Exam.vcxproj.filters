@@ -3,12 +3,26 @@
   <ItemGroup>
     <ClCompile Include="Plugin.cpp" />
     <ClCompile Include="stdafx.cpp" />
-    <ClCompile Include="EliteBehaviorTree\EBehaviorTree.cpp" />
+    <ClCompile Include="EBehaviorTree.cpp">
+      <Filter>EliteFramwork</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin.h" />
     <ClInclude Include="stdafx.h" />
-    <ClInclude Include="EliteData\EBlackboard.h" />
-    <ClInclude Include="EliteBehaviorTree\EBehaviorTree.h" />
+    <ClInclude Include="EBlackboard.h">
+      <Filter>EliteFramwork</Filter>
+    </ClInclude>
+    <ClInclude Include="EBehaviorTree.h">
+      <Filter>EliteFramwork</Filter>
+    </ClInclude>
+    <ClInclude Include="EDecisionMaking.h">
+      <Filter>EliteFramwork</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="EliteFramwork">
+      <UniqueIdentifier>{35421dfa-29cb-424b-a218-378fe71779ba}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>
