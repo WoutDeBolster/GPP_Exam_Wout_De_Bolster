@@ -4,25 +4,43 @@
     <ClCompile Include="Plugin.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="EBehaviorTree.cpp">
-      <Filter>EliteFramwork</Filter>
+      <Filter>EliteFramwork\behaviorTree</Filter>
+    </ClCompile>
+    <ClCompile Include="SteeringBehaviors.cpp">
+      <Filter>EliteFramwork\Steering</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Plugin.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="EDecisionMaking.h">
+      <Filter>EliteFramwork\behaviorTree</Filter>
+    </ClInclude>
     <ClInclude Include="EBlackboard.h">
-      <Filter>EliteFramwork</Filter>
+      <Filter>EliteFramwork\behaviorTree</Filter>
     </ClInclude>
     <ClInclude Include="EBehaviorTree.h">
-      <Filter>EliteFramwork</Filter>
+      <Filter>EliteFramwork\behaviorTree</Filter>
     </ClInclude>
-    <ClInclude Include="EDecisionMaking.h">
-      <Filter>EliteFramwork</Filter>
+    <ClInclude Include="Behaviors.h">
+      <Filter>EliteFramwork\behaviorTree</Filter>
+    </ClInclude>
+    <ClInclude Include="SteeringHelpers.h">
+      <Filter>EliteFramwork\Steering</Filter>
+    </ClInclude>
+    <ClInclude Include="SteeringBehaviors.h">
+      <Filter>EliteFramwork\Steering</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="EliteFramwork">
       <UniqueIdentifier>{35421dfa-29cb-424b-a218-378fe71779ba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EliteFramwork\behaviorTree">
+      <UniqueIdentifier>{7824d274-2e1f-4f2d-ae4a-a285393d797f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="EliteFramwork\Steering">
+      <UniqueIdentifier>{a36f2142-653a-4a47-9a9a-d846e9b01759}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

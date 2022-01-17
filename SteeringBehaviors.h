@@ -10,8 +10,8 @@
 //-----------------------------------------------------------------
 // Includes & Forward Declarations
 //-----------------------------------------------------------------
-#include "SteeringHelpers.h"
-class SteeringAgent;
+
+#include "Exam_HelperStructs.h"
 
 #pragma region **ISTEERINGBEHAVIOR** (BASE)
 class ISteeringBehavior
@@ -20,17 +20,19 @@ public:
 	ISteeringBehavior() = default;
 	virtual ~ISteeringBehavior() = default;
 
-	virtual SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) = 0;
+	virtual SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) = 0;
 
 	//Seek Functions
-	void SetTarget(const TargetData& target) { m_Target = target; }
+	void SetTargetPos(const Elite::Vector2& target) { m_TargetPos = target; }
+	void SetTargetLinVel(Elite::Vector2 target) { m_TargetLinVel = target; }
 
 	template<class T, typename std::enable_if<std::is_base_of<ISteeringBehavior, T>::value>::type* = nullptr>
 	T* As()
 	{ return static_cast<T*>(this); }
 
 protected:
-	TargetData m_Target;
+	Elite::Vector2 m_TargetPos;
+	Elite::Vector2 m_TargetLinVel;
 };
 #pragma endregion
 
@@ -44,7 +46,7 @@ public:
 	virtual ~Seek() = default;
 
 	//Seek Behaviour
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 };
 
 ///////////////////////////////////////
@@ -57,7 +59,7 @@ public:
 	virtual ~Flee() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 };
 
 ///////////////////////////////////////
@@ -70,7 +72,7 @@ public:
 	virtual ~Arrive() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 
 	void SetSlowRadius(float slowRadius) { m_SlowdownRadius = slowRadius; };
 private:
@@ -87,7 +89,7 @@ public:
 	virtual ~Face() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 };
 
 ///////////////////////////////////////
@@ -100,7 +102,7 @@ public:
 	virtual ~Wander() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 private:
 	float m_ChangeTime = 1.f;
 	float m_PassedTime = 0.f;
@@ -122,7 +124,11 @@ public:
 	virtual ~Pursuit() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
+
+	void SetSlowRadius(float slowRadius) { m_SlowdownRadius = slowRadius; };
+private:
+	float m_SlowdownRadius = 3.0f;
 };
 
 ///////////////////////////////////////
@@ -135,7 +141,7 @@ public:
 	virtual ~Evade() = default;
 
 	//Seek Behavior
-	SteeringOutput CalculateSteering(float deltaT, SteeringAgent* pAgent) override;
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
 
 	void SetEvadeRadius(float evadeRadius) { m_EvadeRadius = evadeRadius; };
 
