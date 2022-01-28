@@ -25,9 +25,6 @@
     <ClInclude Include="Behaviors.h">
       <Filter>EliteFramwork\behaviorTree</Filter>
     </ClInclude>
-    <ClInclude Include="SteeringHelpers.h">
-      <Filter>EliteFramwork\Steering</Filter>
-    </ClInclude>
     <ClInclude Include="SteeringBehaviors.h">
       <Filter>EliteFramwork\Steering</Filter>
     </ClInclude>
