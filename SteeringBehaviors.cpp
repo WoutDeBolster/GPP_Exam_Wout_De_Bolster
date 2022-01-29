@@ -95,7 +95,7 @@ SteeringPlugin_Output Pursuit::CalculateSteering(float deltaT, AgentInfo* pAgent
 
 	const Elite::Vector2 distance = m_TargetPos - pAgent->Position;
 	// The longer the distance the higher the pursuitRate
-	const float pursuitRate{ distance.Magnitude() / pAgent->MaxLinearSpeed }; 
+	const float pursuitRate{ distance.Magnitude() / pAgent->MaxLinearSpeed };
 
 	// calculating the future position using the speed
 	const Elite::Vector2 futurePos = m_TargetPos + m_TargetLinVel * pursuitRate;
@@ -115,7 +115,7 @@ SteeringPlugin_Output Evade::CalculateSteering(float deltaT, AgentInfo* pAgent)
 	if (distanceToTarget > m_EvadeRadius)
 		return SteeringPlugin_Output();
 
-	SteeringPlugin_Output steering = { Pursuit::CalculateSteering(deltaT, pAgent)};
+	SteeringPlugin_Output steering = { Pursuit::CalculateSteering(deltaT, pAgent) };
 
 	steering.LinearVelocity *= -1;
 

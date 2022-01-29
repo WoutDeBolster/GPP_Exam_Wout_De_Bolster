@@ -37,7 +37,7 @@ void Plugin::DllInit()
 	m_pAngularBehaviour = m_pFace;
 
 	Elite::Blackboard* pB = new Elite::Blackboard();
-	
+
 	//Add data to blackboard
 	pB->AddData("Target", m_Target);
 
@@ -171,10 +171,10 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 		{
 			PurgeZoneInfo zoneInfo;
 			m_pInterface->PurgeZone_GetInfo(e, zoneInfo);
-			std::cout << "Purge Zone in FOV:" << e.Location.x << ", "<< e.Location.y <<  " ---EntityHash: " << e.EntityHash << "---Radius: "<< zoneInfo.Radius << std::endl;
+			std::cout << "Purge Zone in FOV:" << e.Location.x << ", " << e.Location.y << " ---EntityHash: " << e.EntityHash << "---Radius: " << zoneInfo.Radius << std::endl;
 		}
 	}
-	
+
 
 	//INVENTORY USAGE DEMO
 	//********************

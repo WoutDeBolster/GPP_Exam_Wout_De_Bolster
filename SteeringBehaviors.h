@@ -28,7 +28,9 @@ public:
 
 	template<class T, typename std::enable_if<std::is_base_of<ISteeringBehavior, T>::value>::type* = nullptr>
 	T* As()
-	{ return static_cast<T*>(this); }
+	{
+		return static_cast<T*>(this);
+	}
 
 protected:
 	Elite::Vector2 m_TargetPos;

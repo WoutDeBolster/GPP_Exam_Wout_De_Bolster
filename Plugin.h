@@ -45,7 +45,7 @@ private:
 
 	// behavior stuf
 	Elite::IDecisionMaking* m_pDesitionMaking = nullptr;
-	
+
 	// steering stuf
 	Seek* m_pSeek = nullptr;
 	Wander* m_pWander = nullptr;
