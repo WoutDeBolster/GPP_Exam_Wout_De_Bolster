@@ -150,6 +150,24 @@ public:
 private:
 	float m_EvadeRadius = 20.f;
 };
+
+///////////////////////////////////////
+//SCOUT
+//*****
+class Scout : public Pursuit
+{
+public:
+	Scout() = default;
+	virtual ~Scout() = default;
+
+	//Seek Behavior
+	SteeringPlugin_Output CalculateSteering(float deltaT, AgentInfo* pAgent) override;
+
+	void SetEvadeRadius(float evadeRadius) { m_EvadeRadius = evadeRadius; };
+
+private:
+	float m_EvadeRadius = 20.f;
+};
 #endif
 
 

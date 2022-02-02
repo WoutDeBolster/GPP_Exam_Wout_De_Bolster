@@ -54,6 +54,7 @@ private:
 	Face* m_pFace = nullptr;
 	Evade* m_pEvade = nullptr;
 	Pursuit* m_pPursuit = nullptr;
+	Scout* m_pScout = nullptr;
 
 	ISteeringBehavior* m_pSteeringBehaviour = nullptr;
 	ISteeringBehavior* m_pAngularBehaviour = nullptr;

@@ -121,3 +121,14 @@ SteeringPlugin_Output Evade::CalculateSteering(float deltaT, AgentInfo* pAgent)
 
 	return steering;
 }
+
+//SCOUT
+//*****
+SteeringPlugin_Output Scout::CalculateSteering(float deltaT, AgentInfo* pAgent)
+{
+	SteeringPlugin_Output steering = {};
+
+	steering.AngularVelocity = pAgent->MaxAngularSpeed;
+
+	return steering;
+}

@@ -30,8 +30,10 @@ void Plugin::DllInit()
 	m_pFlee = new Flee();
 	m_pArrive = new Arrive();
 	m_pFace = new Face();
+	m_pEvade = new Evade();
 	m_pPursuit = new Pursuit();
 	m_pEvade = new Evade();
+	m_pScout = new Scout();
 
 	m_pSteeringBehaviour = m_pWander;
 	m_pAngularBehaviour = m_pFace;
@@ -47,8 +49,9 @@ void Plugin::DllInit()
 	pB->AddData("Flee", m_pFlee);
 	pB->AddData("Arrive", m_pArrive);
 	pB->AddData("Face", m_pFace);
-	pB->AddData("Pursuit", m_pPursuit);
 	pB->AddData("Evade", m_pEvade);
+	pB->AddData("Pursuit", m_pPursuit);
+	pB->AddData("Scout", m_pScout);
 
 	pB->AddData("Steering", static_cast<ISteeringBehavior**>(&m_pSteeringBehaviour));
 	pB->AddData("Angular", static_cast<ISteeringBehavior**>(&m_pAngularBehaviour));
@@ -71,15 +74,17 @@ void Plugin::DllShutdown()
 	delete(m_pFlee);
 	delete(m_pArrive);
 	delete(m_pFace);
-	delete(m_pPursuit);
 	delete(m_pEvade);
+	delete(m_pPursuit);
+	delete(m_pScout);
 	m_pSeek = nullptr;
 	m_pWander = nullptr;
 	m_pFlee = nullptr;
 	m_pArrive = nullptr;
 	m_pFace = nullptr;
-	m_pPursuit = nullptr;
 	m_pEvade = nullptr;
+	m_pPursuit = nullptr;
+	m_pScout = nullptr;
 
 	delete(m_pSteeringBehaviour);
 	delete(m_pAngularBehaviour);
