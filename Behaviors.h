@@ -111,7 +111,7 @@ bool EntitieInsiteFOV(Elite::Blackboard* pBlackboard)
 			break;
 		case eEntityType::ITEM:
 			pInterface->Item_GetInfo(currentEntity, ClosestItem);
-			pBlackboard->ChangeData("ClosestEnemy", static_cast<ItemInfo>(ClosestItem));
+			pBlackboard->ChangeData("ClosestItem", static_cast<ItemInfo>(ClosestItem));
 			break;
 		default:
 			std::cout << "Unown entity" << std::endl;

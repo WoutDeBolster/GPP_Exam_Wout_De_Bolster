@@ -12,32 +12,10 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 
 	//Bit information about the plugin
 	//Please fill this in!!
-	info.BotName = "Wally";
-	info.Student_FirstName = "Wout";
-	info.Student_LastName = "De Bolster";
-	info.Student_Class = "2DAE14";
-}
-
-//Called only once
-void Plugin::DllInit()
-{
-	//Called when the plugin is loaded
-	AgentInfo* pWally{ &m_pInterface->Agent_GetInfo() };
-	m_pAgentInfo = pWally;
-
-	// steering init
-	m_pSeek = new Seek();
-	m_pWander = new Wander();
-	m_pFlee = new Flee();
-	m_pArrive = new Arrive();
-	m_pFace = new Face();
-	m_pEvade = new Evade();
-	m_pPursuit = new Pursuit();
-	m_pEvade = new Evade();
-	m_pScout = new Scout();
-
-	m_pSteeringBehaviour = m_pWander;
-	m_pAngularBehaviour = m_pFace;
+	info.BotName = "BotNameTEST";
+	info.Student_FirstName = "Foo";
+	info.Student_LastName = "Bar";
+	info.Student_Class = "2DAEx";
 
 	Elite::Blackboard* pB = new Elite::Blackboard();
 
@@ -70,63 +48,36 @@ void Plugin::DllInit()
 	pB->AddData("ClosestEnemy", static_cast<EnemyInfo*>(nullptr));
 	pB->AddData("ClosestItem", static_cast<ItemInfo*>(nullptr));
 	pB->AddData("ClosestPurgeZone", static_cast<PurgeZoneInfo*>(nullptr));
+}
 
-	Elite::BehaviorTree* pBehaviorTree = new Elite::BehaviorTree(pB,
-		new Elite::BehaviorSelector(
-			{
-					new Elite::BehaviorSequence(
-					{
-						new Elite::BehaviorConditional(IsEnemyClose),
-						new Elite::BehaviorAction(ChangeToEvade)
-					}),
-					new Elite::BehaviorSequence(
-					{
-						new Elite::BehaviorConditional(IsPurgeZoneClose),
-						new Elite::BehaviorAction(ChangeToFlee)
-					}),
-					new Elite::BehaviorSequence(
-					{
-						new Elite::BehaviorConditional(IsItemClose),
-						new Elite::BehaviorAction(ChangeToSeek)
-					}),
-					new Elite::BehaviorAction(ChangeToWander)
-			})
-	);
+//Called only once
+void Plugin::DllInit()
+{
+	//Called when the plugin is loaded
+	AgentInfo* pWally{ &m_pInterface->Agent_GetInfo() };
+	m_pAgentInfo = pWally;
 
-	m_pDesitionMaking = pBehaviorTree;
+	// steering init
+	m_pSeek = new Seek();
+	m_pWander = new Wander();
+	m_pFlee = new Flee();
+	m_pArrive = new Arrive();
+	m_pFace = new Face();
+	m_pEvade = new Evade();
+	m_pPursuit = new Pursuit();
+	m_pEvade = new Evade();
+	m_pScout = new Scout();
+
+	m_pSteeringBehaviour = m_pWander;
+	m_pAngularBehaviour = m_pFace;
+
+	Elite::Blackboard* pB = new Elite::Blackboard();
 }
 
 //Called only once
 void Plugin::DllShutdown()
 {
 	//Called when the plugin gets unloaded
-	delete(m_pSeek);
-	delete(m_pWander);
-	delete(m_pFlee);
-	delete(m_pArrive);
-	delete(m_pFace);
-	delete(m_pEvade);
-	delete(m_pPursuit);
-	delete(m_pScout);
-	m_pSeek = nullptr;
-	m_pWander = nullptr;
-	m_pFlee = nullptr;
-	m_pArrive = nullptr;
-	m_pFace = nullptr;
-	m_pEvade = nullptr;
-	m_pPursuit = nullptr;
-	m_pScout = nullptr;
-
-	delete(m_pSteeringBehaviour);
-	delete(m_pAngularBehaviour);
-	m_pSteeringBehaviour = nullptr;
-	m_pAngularBehaviour = nullptr;
-
-	delete(m_pAgentInfo);
-	m_pAgentInfo = nullptr;
-
-	delete(m_pInterface);
-	m_pInterface = nullptr;
 }
 
 //Called only once, during initialization
@@ -196,10 +147,6 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 
 	auto vHousesInFOV = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
 	auto vEntitiesInFOV = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
-
-	// update desition making
-	if (m_pDesitionMaking)
-		m_pDesitionMaking->Update(dt);
 
 	for (auto& e : vEntitiesInFOV)
 	{

@@ -27,19 +27,19 @@ public:
 private:
 	//Interface, used to request data from/perform actions with the AI Framework
 	IExamInterface* m_pInterface = nullptr;
-
 	vector<HouseInfo> GetHousesInFOV() const;
 	vector<EntityInfo> GetEntitiesInFOV() const;
 	std::vector<HouseInfo> m_VHouseInfo;
 	std::vector<EntityInfo> m_VEntityInfo;
 
+	Elite::Vector2 m_Target = {};
 	bool m_CanRun = false; //Demo purpose
 	bool m_GrabItem = false; //Demo purpose
 	bool m_UseItem = false; //Demo purpose
 	bool m_RemoveItem = false; //Demo purpose
 	float m_AngSpeed = 0.f; //Demo purpose
 
-	// agent stuff
+		// agent stuff
 	Elite::Vector2 m_Target = {};
 	AgentInfo* m_pAgentInfo = nullptr;
 
