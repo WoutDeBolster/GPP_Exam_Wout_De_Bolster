@@ -15,6 +15,7 @@
 #include "SteeringBehaviors.h"
 #include "EBlackboard.h"
 #include "IExamInterface.h"
+#include "EliteMath/EMath.h"
 
 //-----------------------------------------------------------------
 // Behaviors
@@ -25,7 +26,7 @@ bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 	IExamInterface* pInterface{};
 	Elite::Vector2 target{};
 	AgentInfo* pAgent{};
-	HouseInfo currentHouse{};
+	HouseInfo* currentHouse{};
 	auto dataAvailable = pBlackboard->GetData("Houses", pVHouseInfo) &&
 		pBlackboard->GetData("Interface", pInterface) &&
 		pBlackboard->GetData("Target", target) &&
@@ -38,7 +39,7 @@ bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 
 	// looking for the closed house
 	float distance = FLT_MAX;
-	for (const HouseInfo& info : *pVHouseInfo)
+	for (HouseInfo& info : *pVHouseInfo)
 	{
 		float houseDistance = Distance(pAgent->Position, info.Center);
 
@@ -46,7 +47,7 @@ bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 		{
 			distance = houseDistance;
 			target = info.Center;
-			currentHouse = info;
+			currentHouse = &info;
 		}
 	}
 
@@ -54,44 +55,148 @@ bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 	if (distance != FLT_MAX)
 	{
 		pBlackboard->ChangeData("Target", target);
-		pBlackboard->ChangeData("HouseInfo", currentHouse);
+		pBlackboard->ChangeData("ClosestHouse", currentHouse);
 		return true;
 	}
 	return false;
 }
 
-//bool IsCloseToItem(Elite::Blackboard* pBlackboard)
-//{
-//	AgentInfo* pAgent = nullptr;
-//	std::vector<AgentInfo*>* ItemVec = nullptr;
-//
-//	auto dataAvailable = pBlackboard->GetData("Agent", pAgent) &&
-//		pBlackboard->GetData("FoodVec", foodVec);
-//
-//	if (!pAgent || !foodVec)
-//	{
-//		return false;
-//	}
-//
-//	//TODO: Check for food closeby and set target accordingly
-//	const float closeToFoodRange{ 20.f };
-//
-//	// finding food
-//	auto foodIt = std::find_if(foodVec->begin(), foodVec->end(), [&pAgent, &closeToFoodRange](AgarioFood* food)
-//		{
-//			return DistanceSquared(pAgent->GetPosition(), food->GetPosition()) < (closeToFoodRange * closeToFoodRange);
-//		});
-//
-//	// setting the target
-//	if (foodIt != foodVec->end())
-//	{
-//		pBlackboard->ChangeData("Target", (*foodIt)->GetPosition());
-//		return true;
-//	}
-//
-//	return false;
-//}
-//
+bool EntitieInsiteFOV(Elite::Blackboard* pBlackboard)
+{
+	vector<EntityInfo>* pVEntetyInfo{};
+	IExamInterface* pInterface{};
+	Elite::Vector2 target{};
+	AgentInfo* pAgent{};
+	EntityInfo currentEntity{};
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Target", target) &&
+		pBlackboard->GetData("Agent", pAgent);
+	if (!dataAvailable)
+		return false;
+
+	if (pAgent->IsInHouse)
+		return false;
+
+	// looking for the closed house
+	float distance = FLT_MAX;
+	for (const EntityInfo& info : *pVEntetyInfo)
+	{
+		float EntityDistance = Distance(pAgent->Position, info.Location);
+
+		if (EntityDistance < distance)
+		{
+			distance = EntityDistance;
+			target = info.Location;
+			currentEntity = info;
+		}
+	}
+
+	// if there is a house around set it to the target value
+	if (distance != FLT_MAX)
+	{
+		PurgeZoneInfo ClosestPurgeZone{};
+		EnemyInfo ClosestEnemy{};
+		ItemInfo ClosestItem{};
+
+		switch (currentEntity.Type)
+		{
+		case eEntityType::PURGEZONE:
+			pInterface->PurgeZone_GetInfo(currentEntity, ClosestPurgeZone);
+			pBlackboard->ChangeData("ClosestPurgeZone", static_cast<PurgeZoneInfo>(ClosestPurgeZone));
+			break;
+		case eEntityType::ENEMY:
+			pInterface->Enemy_GetInfo(currentEntity, ClosestEnemy);
+			pBlackboard->ChangeData("ClosestEnemy", static_cast<EnemyInfo>(ClosestEnemy));
+			break;
+		case eEntityType::ITEM:
+			pInterface->Item_GetInfo(currentEntity, ClosestItem);
+			pBlackboard->ChangeData("ClosestEnemy", static_cast<ItemInfo>(ClosestItem));
+			break;
+		default:
+			std::cout << "Unown entity" << std::endl;
+			break;
+		}
+		pBlackboard->ChangeData("Target", target);
+		return true;
+	}
+	return false;
+}
+
+bool IsEnemyClose(Elite::Blackboard* pBlackboard)
+{
+	Elite::Vector2 target{};
+	AgentInfo* pAgent{};
+	EnemyInfo closestEnemy{};
+	auto dataAvailable = pBlackboard->GetData("ClosestEnemy", closestEnemy) &&
+		pBlackboard->GetData("Target", target) &&
+		pBlackboard->GetData("Agent", pAgent);
+	if (!dataAvailable)
+		return false;
+
+	if (pAgent->IsInHouse)
+		return false;
+
+	const float DangerRadius{ 10.f };
+	if (DistanceSquared(pAgent->Position, closestEnemy.Location) < (DangerRadius * DangerRadius) &&
+		(closestEnemy.Size / 2.f) > (pAgent->AgentSize / 2.f))
+	{
+		pBlackboard->ChangeData("Target", closestEnemy.Location);
+		return true;
+	}
+
+	return false;
+}
+
+bool IsItemClose(Elite::Blackboard* pBlackboard)
+{
+	Elite::Vector2 target{};
+	AgentInfo* pAgent{};
+	ItemInfo closestItem{};
+	auto dataAvailable = pBlackboard->GetData("ClosestItem", closestItem) &&
+		pBlackboard->GetData("Target", target) &&
+		pBlackboard->GetData("Agent", pAgent);
+	if (!dataAvailable)
+		return false;
+
+	if (pAgent->IsInHouse)
+		return false;
+
+	const float DangerRadius{ 10.f };
+	if (DistanceSquared(pAgent->Position, closestItem.Location) < (DangerRadius * DangerRadius))
+	{
+		pBlackboard->ChangeData("Target", closestItem.Location);
+		return true;
+	}
+
+	return false;
+}
+
+bool IsPurgeZoneClose(Elite::Blackboard* pBlackboard)
+{
+	Elite::Vector2 target{};
+	AgentInfo* pAgent{};
+	PurgeZoneInfo closestZone{};
+	auto dataAvailable = pBlackboard->GetData("ClosestPurgeZone", closestZone) &&
+		pBlackboard->GetData("Target", target) &&
+		pBlackboard->GetData("Agent", pAgent);
+	if (!dataAvailable)
+		return false;
+
+	if (pAgent->IsInHouse)
+		return false;
+
+	const float DangerRadius{ 10.f };
+	if (DistanceSquared(pAgent->Position, closestZone.Center) < (DangerRadius * DangerRadius) &&
+		closestZone.Radius > (pAgent->AgentSize / 2.f))
+	{
+		pBlackboard->ChangeData("Target", closestZone.Center);
+		return true;
+	}
+
+	return false;
+}
+
 //bool IsBiggerEnemyClose(Elite::Blackboard* pBlackboard)
 //{
 //	AgarioAgent* pAgent = nullptr;
@@ -104,29 +209,6 @@ bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 //	auto enemyIt = std::find_if(AgentsVec->begin(), AgentsVec->end(), [&pAgent, &DangerRadius](AgarioAgent* enemy)
 //		{
 //			return DistanceSquared(pAgent->GetPosition(), enemy->GetPosition()) < (DangerRadius * DangerRadius) && enemy->GetRadius() > pAgent->GetRadius();
-//		});
-//
-//	if (enemyIt != AgentsVec->end())
-//	{
-//		pBlackboard->ChangeData("Target", (*enemyIt)->GetPosition());
-//		return true;
-//	}
-//
-//	return false;
-//}
-//
-//bool IsSmallerEnemyClose(Elite::Blackboard* pBlackboard)
-//{
-//	AgarioAgent* pAgent = nullptr;
-//	std::vector<AgarioAgent*>* AgentsVec = nullptr;
-//	const float CloseRadius{ 15.f };
-//
-//	auto dataAvailable = pBlackboard->GetData("Agent", pAgent) &&
-//		pBlackboard->GetData("AgentsVec", AgentsVec);
-//
-//	auto enemyIt = std::find_if(AgentsVec->begin(), AgentsVec->end(), [&pAgent, &CloseRadius](AgarioAgent* enemy)
-//		{
-//			return DistanceSquared(pAgent->GetPosition(), enemy->GetPosition()) < (CloseRadius * CloseRadius) && enemy->GetRadius() < pAgent->GetRadius();
 //		});
 //
 //	if (enemyIt != AgentsVec->end())

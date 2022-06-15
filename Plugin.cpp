@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Plugin.h"
 #include "IExamInterface.h"
+#include "Behaviors.h"
 
 //Called only once, during initialization
 void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
@@ -63,6 +64,36 @@ void Plugin::DllInit()
 	pB->AddData("Entities", static_cast<vector<EntityInfo>*>(&m_VEntityInfo));
 
 	pB->AddData("Interface", m_pInterface);
+
+	// empty stuff
+	pB->AddData("ClosestHouse", static_cast<HouseInfo*>(nullptr));
+	pB->AddData("ClosestEnemy", static_cast<EnemyInfo*>(nullptr));
+	pB->AddData("ClosestItem", static_cast<ItemInfo*>(nullptr));
+	pB->AddData("ClosestPurgeZone", static_cast<PurgeZoneInfo*>(nullptr));
+
+	Elite::BehaviorTree* pBehaviorTree = new Elite::BehaviorTree(pB,
+		new Elite::BehaviorSelector(
+			{
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditional(IsEnemyClose),
+						new Elite::BehaviorAction(ChangeToEvade)
+					}),
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditional(IsPurgeZoneClose),
+						new Elite::BehaviorAction(ChangeToFlee)
+					}),
+					new Elite::BehaviorSequence(
+					{
+						new Elite::BehaviorConditional(IsItemClose),
+						new Elite::BehaviorAction(ChangeToSeek)
+					}),
+					new Elite::BehaviorAction(ChangeToWander)
+			})
+	);
+
+	m_pDesitionMaking = pBehaviorTree;
 }
 
 //Called only once
