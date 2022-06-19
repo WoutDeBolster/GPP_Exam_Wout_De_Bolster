@@ -20,7 +20,11 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 	Elite::Blackboard* pB = new Elite::Blackboard();
 
 	//Add data to blackboard
-	pB->AddData("Target", m_Target);
+	pB->AddData("fleeTarget", Elite::Vector2{});
+	pB->AddData("ItemTarget", EntityInfo{});
+	pB->AddData("EnemyTarget", EntityInfo{});
+	pB->AddData("houseTarget", HouseInfo{});
+	pB->AddData("Target", m_Target); // delete
 
 	//Steering Behaviors
 	pB->AddData("Seek", m_pSeek);
@@ -48,14 +52,16 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 	pB->AddData("ClosestEnemy", static_cast<EnemyInfo*>(nullptr));
 	pB->AddData("ClosestItem", static_cast<ItemInfo*>(nullptr));
 	pB->AddData("ClosestPurgeZone", static_cast<PurgeZoneInfo*>(nullptr));
+
+
 }
 
 //Called only once
 void Plugin::DllInit()
 {
-	//Called when the plugin is loaded
-	AgentInfo* pWally{ &m_pInterface->Agent_GetInfo() };
-	m_pAgentInfo = pWally;
+	////Called when the plugin is loaded
+	//AgentInfo* pWally{ &m_pInterface->Agent_GetInfo() };
+	//m_pAgentInfo = pWally;
 
 	// steering init
 	m_pSeek = new Seek();

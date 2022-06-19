@@ -32,7 +32,6 @@ private:
 	std::vector<HouseInfo> m_VHouseInfo;
 	std::vector<EntityInfo> m_VEntityInfo;
 
-	Elite::Vector2 m_Target = {};
 	bool m_CanRun = false; //Demo purpose
 	bool m_GrabItem = false; //Demo purpose
 	bool m_UseItem = false; //Demo purpose

@@ -15,11 +15,14 @@
 #include "SteeringBehaviors.h"
 #include "EBlackboard.h"
 #include "IExamInterface.h"
-#include "EliteMath/EMath.h"
 
 //-----------------------------------------------------------------
 // Behaviors
 //-----------------------------------------------------------------
+
+// CONDITIONALS
+//-------------
+
 bool IsHouseInsideFOV(Elite::Blackboard* pBlackboard)
 {
 	vector<HouseInfo>* pVHouseInfo{};
@@ -172,53 +175,279 @@ bool IsItemClose(Elite::Blackboard* pBlackboard)
 	return false;
 }
 
-bool IsPurgeZoneClose(Elite::Blackboard* pBlackboard)
+// use items
+bool shouldUseMedkit(Elite::Blackboard* pBlackboard)
 {
-	Elite::Vector2 target{};
 	AgentInfo* pAgent{};
-	PurgeZoneInfo closestZone{};
-	auto dataAvailable = pBlackboard->GetData("ClosestPurgeZone", closestZone) &&
-		pBlackboard->GetData("Target", target) &&
-		pBlackboard->GetData("Agent", pAgent);
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent) &&
+		pBlackboard->GetData("Interface", pInterface);
+
 	if (!dataAvailable)
-		return false;
-
-	if (pAgent->IsInHouse)
-		return false;
-
-	const float DangerRadius{ 10.f };
-	if (DistanceSquared(pAgent->Position, closestZone.Center) < (DangerRadius * DangerRadius) &&
-		closestZone.Radius > (pAgent->AgentSize / 2.f))
 	{
-		pBlackboard->ChangeData("Target", closestZone.Center);
-		return true;
+		return Elite::BehaviorState::Failure;
 	}
 
-	return false;
+	if (pAgent->Health <= 5.f)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a medkit in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::MEDKIT)
+			{
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
 }
 
-//bool IsBiggerEnemyClose(Elite::Blackboard* pBlackboard)
-//{
-//	AgarioAgent* pAgent = nullptr;
-//	std::vector<AgarioAgent*>* AgentsVec = nullptr;
-//	const float DangerRadius{ 15.f };
-//
-//	auto dataAvailable = pBlackboard->GetData("Agent", pAgent) &&
-//		pBlackboard->GetData("AgentsVec", AgentsVec);
-//
-//	auto enemyIt = std::find_if(AgentsVec->begin(), AgentsVec->end(), [&pAgent, &DangerRadius](AgarioAgent* enemy)
-//		{
-//			return DistanceSquared(pAgent->GetPosition(), enemy->GetPosition()) < (DangerRadius * DangerRadius) && enemy->GetRadius() > pAgent->GetRadius();
-//		});
-//
-//	if (enemyIt != AgentsVec->end())
-//	{
-//		pBlackboard->ChangeData("Target", (*enemyIt)->GetPosition());
-//		return true;
-//	}
-//
-//	return false;
-//}
+bool shouldUseFood(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent) &&
+		pBlackboard->GetData("Interface", pInterface);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	if (pAgent->Stamina <= 5.f)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a medkit in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::FOOD)
+			{
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// purgeZone
+bool InPurgeZone(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	vector<EntityInfo>* pVEntetyInfo{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	PurgeZoneInfo zoneInfo;
+	for (auto& e : *pVEntetyInfo)
+	{
+		if (e.Type == eEntityType::PURGEZONE)
+		{
+			pInterface->PurgeZone_GetInfo(e, zoneInfo);
+		}
+	}
+
+	const float DangerRadius{ zoneInfo.Radius };
+	if (DistanceSquared(pAgent->Position, zoneInfo.Center) < (DangerRadius * DangerRadius))
+	{
+		pBlackboard->ChangeData("fleeTarget", zoneInfo.Center);
+		return Elite::BehaviorState::Success;
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// enemy
+bool AgentBittenHasStamina(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	if (!pAgent->Bitten)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+	if (pAgent->Stamina < 0.1f)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	return Elite::BehaviorState::Success;
+}
+
+bool EnemyInFOV(Elite::Blackboard* pBlackboard)
+{
+	vector<EntityInfo>* pVEntetyInfo{};
+
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	for (const EntityInfo& entity : *pVEntetyInfo)
+	{
+		if (entity.Type == eEntityType::ENEMY)
+		{
+			pBlackboard->ChangeData("EnemyTarget", entity);
+			Elite::BehaviorState::Success;
+		}
+	}
+
+	Elite::BehaviorState::Failure;
+}
+
+bool HasStamina(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	if (pAgent->Stamina < 0.1f)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	return Elite::BehaviorState::Success;
+}
+
+// not done
+bool canHitEnemy(Elite::Blackboard* pBlackboard)
+{
+	vector<EntityInfo>* pVEntetyInfo{};
+	IExamInterface* pInterface{};
+	AgentInfo* pAgent{};
+
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a pistol in inverntory
+	bool hasGun{};
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::PISTOL)
+			{
+				hasGun = true;
+			}
+		}
+	}
+
+	// facing enemy????
+
+	return Elite::BehaviorState::Failure;
+}
+
+// get items
+bool InGrabRange(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	vector<EntityInfo>* pVEntetyInfo{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	ItemInfo item;
+	for (auto& e : *pVEntetyInfo)
+	{
+		if (e.Type == eEntityType::ITEM)
+		{
+			pInterface->Item_GetInfo(e, item);
+
+			const float grabRange{ 1.f };
+			if (DistanceSquared(pAgent->Position, item.Location) < (grabRange * grabRange))
+			{
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// inside house
+bool InsideHouse(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	vector<HouseInfo>* pVHouseInfo{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("houseTarget", pVHouseInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	//// square detection
+	//PurgeZoneInfo zoneInfo;
+	//for (auto& h : *pVHouseInfo)
+	//{
+	//	const Elite::Vector2 DangerRadius{ h.Size };
+	//	const float distance{ DistanceSquared(pAgent->Position, h.Center) };
+	//	if (DistanceSquared(pAgent->Position, h.Center) < (DangerRadius * DangerRadius))
+	//	{
+	//		pBlackboard->ChangeData("houseTarget", h);
+	//		return Elite::BehaviorState::Success;
+	//	}
+	//}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// ACTIONS
+//--------
 
 Elite::BehaviorState ChangeToSeek(Elite::Blackboard* pBlackboard)
 {
@@ -262,25 +491,6 @@ Elite::BehaviorState ChangeToWander(Elite::Blackboard* pBlackboard)
 	return Elite::BehaviorState::Success;
 }
 
-Elite::BehaviorState ChangeToFlee(Elite::Blackboard* pBlackboard)
-{
-	ISteeringBehavior* pFlee = nullptr;
-	ISteeringBehavior** ppSteering = nullptr;
-	Elite::Vector2 FleeTarget{};
-	auto dataAvailable = pBlackboard->GetData("Flee", pFlee) &&
-		pBlackboard->GetData("Steering", ppSteering) &&
-		pBlackboard->GetData("Target", FleeTarget);
-
-	if (!dataAvailable)
-	{
-		return Elite::BehaviorState::Failure;
-	}
-
-	pFlee->SetTargetPos(FleeTarget);
-	*ppSteering = pFlee;
-
-	return Elite::BehaviorState::Success;
-}
 
 Elite::BehaviorState ChangeToArrive(Elite::Blackboard* pBlackboard)
 {
@@ -302,32 +512,12 @@ Elite::BehaviorState ChangeToArrive(Elite::Blackboard* pBlackboard)
 	return Elite::BehaviorState::Success;
 }
 
-Elite::BehaviorState ChangeToFace(Elite::Blackboard* pBlackboard)
-{
-	ISteeringBehavior* pFace = nullptr;
-	ISteeringBehavior** ppAngular = nullptr;
-	Elite::Vector2 FaceTarget{};
-	auto dataAvailable = pBlackboard->GetData("Face", pFace) &&
-		pBlackboard->GetData("Angular", ppAngular) &&
-		pBlackboard->GetData("Target", FaceTarget);
-
-	if (!dataAvailable)
-	{
-		return Elite::BehaviorState::Failure;
-	}
-
-	pFace->SetTargetPos(FaceTarget);
-	*ppAngular = pFace;
-
-	return Elite::BehaviorState::Success;
-}
-
 Elite::BehaviorState ChangeToEvade(Elite::Blackboard* pBlackboard)
 {
 	ISteeringBehavior* pEvade = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	Elite::Vector2 EvadeTarget{};
-	auto dataAvailable = pBlackboard->GetData("Evade", pEvade) &&
+	auto dataAvailable = pBlackboard->GetData("fleeTarget", pEvade) &&
 		pBlackboard->GetData("Steering", ppSteering) &&
 		pBlackboard->GetData("Target", EvadeTarget);
 
@@ -360,5 +550,225 @@ Elite::BehaviorState ChangeToPursuit(Elite::Blackboard* pBlackboard)
 	*ppSteering = pPursuit;
 
 	return Elite::BehaviorState::Success;
+}
+
+// use items
+Elite::BehaviorState UseMedkit(Elite::Blackboard* pBlackboard)
+{
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Interface", pInterface);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a pistol in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::MEDKIT)
+			{
+				pInterface->Inventory_UseItem(i);
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+Elite::BehaviorState UseFood(Elite::Blackboard* pBlackboard)
+{
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Interface", pInterface);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a pistol in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::FOOD)
+			{
+				pInterface->Inventory_UseItem(i);
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// purgeZone
+Elite::BehaviorState Flee(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pFlee = nullptr;
+	ISteeringBehavior** ppSteering = nullptr;
+	Elite::Vector2 FleeTarget{};
+	auto dataAvailable = pBlackboard->GetData("Flee", pFlee) &&
+		pBlackboard->GetData("Steering", ppSteering) &&
+		pBlackboard->GetData("fleeTarget", FleeTarget);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	pFlee->SetTargetPos(FleeTarget);
+	*ppSteering = pFlee;
+
+	return Elite::BehaviorState::Success;
+}
+
+// enemy
+Elite::BehaviorState RunFlee(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pFlee = nullptr;
+	ISteeringBehavior** ppSteering = nullptr;
+	AgentInfo* pAgent{};
+	Elite::Vector2 FleeTarget{};
+
+	auto dataAvailable = pBlackboard->GetData("Flee", pFlee) &&
+		pBlackboard->GetData("Steering", ppSteering) &&
+		pBlackboard->GetData("EnemyTarget", FleeTarget) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// flee
+	pFlee->SetTargetPos(FleeTarget);
+	*ppSteering = pFlee;
+
+	// run
+	pAgent->RunMode = true;
+
+	return Elite::BehaviorState::Success;
+}
+
+Elite::BehaviorState FaceToClosestEnemy(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pFace = nullptr;
+	ISteeringBehavior** ppAngular = nullptr;
+	Elite::Vector2 FaceTarget{};
+	auto dataAvailable = pBlackboard->GetData("Face", pFace) &&
+		pBlackboard->GetData("Angular", ppAngular) &&
+		pBlackboard->GetData("EnemyTarget", FaceTarget);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	pFace->SetTargetPos(FaceTarget);
+	*ppAngular = pFace;
+
+	return Elite::BehaviorState::Success;
+}
+
+Elite::BehaviorState ShootClosestEnemy(Elite::Blackboard* pBlackboard)
+{
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Interface", pInterface);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a pistol in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::PISTOL)
+			{
+				pInterface->Inventory_UseItem(i);
+				Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// get items
+Elite::BehaviorState SeekItems(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pSeek = nullptr;
+	ISteeringBehavior** ppSteering = nullptr;
+	EntityInfo seekTarget{};
+	auto dataAvailable = pBlackboard->GetData("Seek", pSeek) &&
+		pBlackboard->GetData("Steering", ppSteering) &&
+		pBlackboard->GetData("ItemTarget", seekTarget);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	pSeek->SetTargetPos(seekTarget.Location);
+	*ppSteering = pSeek;
+
+	return Elite::BehaviorState::Success;
+}
+
+Elite::BehaviorState GrabItems(Elite::Blackboard* pBlackboard)
+{
+	IExamInterface* pInterface{};
+	EntityInfo target{};
+
+	auto dataAvailable = pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("ItemTarget", target);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	ItemInfo item{};
+	if (pInterface->Item_Grab(target, item))
+	{
+		// for now first 3 slots
+		switch (item.Type)
+		{
+		case eItemType::PISTOL:
+			pInterface->Inventory_RemoveItem(0);
+			pInterface->Inventory_AddItem(0, item);
+			return Elite::BehaviorState::Success;
+		case eItemType::FOOD:
+			pInterface->Inventory_RemoveItem(1);
+			return Elite::BehaviorState::Success;
+			pInterface->Inventory_AddItem(1, item);
+		case eItemType::MEDKIT:
+			pInterface->Inventory_RemoveItem(2);
+			pInterface->Inventory_AddItem(2, item);
+			return Elite::BehaviorState::Success;
+		default:
+			return Elite::BehaviorState::Failure;
+			break;
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
 }
 #endif
