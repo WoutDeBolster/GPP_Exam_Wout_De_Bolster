@@ -319,11 +319,38 @@ bool EnemyInFOV(Elite::Blackboard* pBlackboard)
 		if (entity.Type == eEntityType::ENEMY)
 		{
 			pBlackboard->ChangeData("EnemyTarget", entity);
-			Elite::BehaviorState::Success;
+			return Elite::BehaviorState::Success;
 		}
 	}
 
-	Elite::BehaviorState::Failure;
+	return Elite::BehaviorState::Failure;
+}
+
+bool CanKillEnemy(Elite::Blackboard* pBlackboard)
+{
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Interface", pInterface);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a medkit in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item))
+		{
+			if (item.Type == eItemType::PISTOL)
+			{
+				return Elite::BehaviorState::Success;
+			}
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
 }
 
 bool HasStamina(Elite::Blackboard* pBlackboard)
@@ -345,7 +372,7 @@ bool HasStamina(Elite::Blackboard* pBlackboard)
 	return Elite::BehaviorState::Success;
 }
 
-// not done
+// not done!!!
 bool canHitEnemy(Elite::Blackboard* pBlackboard)
 {
 	vector<EntityInfo>* pVEntetyInfo{};
@@ -381,6 +408,34 @@ bool canHitEnemy(Elite::Blackboard* pBlackboard)
 }
 
 // get items
+bool InventoryFull(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	vector<EntityInfo>* pVEntetyInfo{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// search for a pistol in inverntory
+	for (UINT i = 0; i < pInterface->Inventory_GetCapacity(); i++)
+	{
+		ItemInfo item{};
+		if (pInterface->Inventory_GetItem(i, item) == false)
+		{
+			return Elite::BehaviorState::Failure;
+		}
+	}
+
+	return Elite::BehaviorState::Success;
+}
+
 bool InGrabRange(Elite::Blackboard* pBlackboard)
 {
 	AgentInfo* pAgent{};
@@ -415,6 +470,7 @@ bool InGrabRange(Elite::Blackboard* pBlackboard)
 }
 
 // inside house
+// not done!!!
 bool InsideHouse(Elite::Blackboard* pBlackboard)
 {
 	AgentInfo* pAgent{};
@@ -444,6 +500,26 @@ bool InsideHouse(Elite::Blackboard* pBlackboard)
 	//}
 
 	return Elite::BehaviorState::Failure;
+}
+
+// standert things
+bool LowStamina(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	if (pAgent->Stamina > 0.1f)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	return Elite::BehaviorState::Success;
 }
 
 // ACTIONS
@@ -490,7 +566,6 @@ Elite::BehaviorState ChangeToWander(Elite::Blackboard* pBlackboard)
 
 	return Elite::BehaviorState::Success;
 }
-
 
 Elite::BehaviorState ChangeToArrive(Elite::Blackboard* pBlackboard)
 {
@@ -610,7 +685,7 @@ Elite::BehaviorState UseFood(Elite::Blackboard* pBlackboard)
 }
 
 // purgeZone
-Elite::BehaviorState Flee(Elite::Blackboard* pBlackboard)
+Elite::BehaviorState ChangeToFlee(Elite::Blackboard* pBlackboard)
 {
 	ISteeringBehavior* pFlee = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
@@ -732,7 +807,7 @@ Elite::BehaviorState SeekItems(Elite::Blackboard* pBlackboard)
 	return Elite::BehaviorState::Success;
 }
 
-Elite::BehaviorState GrabItems(Elite::Blackboard* pBlackboard)
+Elite::BehaviorState GrabItem(Elite::Blackboard* pBlackboard)
 {
 	IExamInterface* pInterface{};
 	EntityInfo target{};
@@ -770,5 +845,61 @@ Elite::BehaviorState GrabItems(Elite::Blackboard* pBlackboard)
 	}
 
 	return Elite::BehaviorState::Failure;
+}
+
+// standert things
+Elite::BehaviorState StopRunning(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+
+	auto dataAvailable = pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	pAgent->RunMode = false;
+
+	return Elite::BehaviorState::Success;
+}
+
+Elite::BehaviorState ScoutWander(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pWander = nullptr;
+	ISteeringBehavior* pScouting = nullptr;
+	ISteeringBehavior** ppSteering = nullptr;
+	ISteeringBehavior** ppAngular = nullptr;
+	auto dataAvailable = pBlackboard->GetData("Wander", pWander) &&
+		pBlackboard->GetData("Scouting", pScouting) &&
+		pBlackboard->GetData("Steering", ppSteering) &&
+		pBlackboard->GetData("Angular", ppAngular);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	*ppSteering = pWander;
+	*ppAngular = pScouting;
+
+	return Elite::BehaviorState::Success;
+}
+
+Elite::BehaviorState Radar(Elite::Blackboard* pBlackboard)
+{
+	ISteeringBehavior* pScouting = nullptr;
+	ISteeringBehavior** ppAngular = nullptr;
+	auto dataAvailable = pBlackboard->GetData("Scouting", pScouting) &&
+		pBlackboard->GetData("Angular", ppAngular);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	*ppAngular = pScouting;
+
+	return Elite::BehaviorState::Success;
 }
 #endif

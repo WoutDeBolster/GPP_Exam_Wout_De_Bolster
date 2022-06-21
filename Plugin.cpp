@@ -2,6 +2,9 @@
 #include "Plugin.h"
 #include "IExamInterface.h"
 #include "Behaviors.h"
+#include "EBehaviorTree.h"
+
+using namespace Elite;
 
 //Called only once, during initialization
 void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
@@ -20,7 +23,7 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 	Elite::Blackboard* pB = new Elite::Blackboard();
 
 	//Add data to blackboard
-	pB->AddData("fleeTarget", Elite::Vector2{});
+	pB->AddData("fleeTarget", Vector2{});
 	pB->AddData("ItemTarget", EntityInfo{});
 	pB->AddData("EnemyTarget", EntityInfo{});
 	pB->AddData("houseTarget", HouseInfo{});
@@ -53,7 +56,76 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 	pB->AddData("ClosestItem", static_cast<ItemInfo*>(nullptr));
 	pB->AddData("ClosestPurgeZone", static_cast<PurgeZoneInfo*>(nullptr));
 
-
+	// behavior tree
+	BehaviorTree* pBT = new BehaviorTree(pB,
+		new BehaviorSelector(
+			{
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(shouldUseMedkit),
+					new BehaviorAction(UseMedkit)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(shouldUseFood),
+					new BehaviorAction(UseFood)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(InPurgeZone),
+					new BehaviorAction(ChangeToFlee)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(LowStamina),
+					new BehaviorAction(StopRunning)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(EnemyInFOV),
+					new BehaviorSelector(
+					{
+						new BehaviorSequence(
+						{
+							new BehaviorConditional(CanKillEnemy),
+							new BehaviorSelector(
+							{
+								new BehaviorSequence(
+								{
+									new BehaviorConditional(canHitEnemy),
+									new BehaviorAction(ShootClosestEnemy)
+								}),
+								new BehaviorAction(FaceToClosestEnemy)
+							})
+						}),
+						new BehaviorSequence(
+						{
+							new BehaviorConditional(HasStamina),
+							new BehaviorAction(RunFlee)
+						})
+					})
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(AgentBittenHasStamina),
+					new BehaviorAction(RunFlee)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(InventoryFull),
+					new BehaviorSelector(
+					{
+						new BehaviorSequence(
+						{
+							new BehaviorConditional(InGrabRange),
+							new BehaviorAction(GrabItem)
+						}),
+						new BehaviorAction(SeekItems)
+					})
+				}),
+				new BehaviorAction(ScoutWander)
+			})
+	);
 }
 
 //Called only once
@@ -75,9 +147,7 @@ void Plugin::DllInit()
 	m_pScout = new Scout();
 
 	m_pSteeringBehaviour = m_pWander;
-	m_pAngularBehaviour = m_pFace;
-
-	Elite::Blackboard* pB = new Elite::Blackboard();
+	m_pAngularBehaviour = m_pScout;
 }
 
 //Called only once
@@ -147,14 +217,14 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 	auto steering = SteeringPlugin_Output();
 
 	//Use the Interface (IAssignmentInterface) to 'interface' with the AI_Framework
-	auto agentInfo = m_pInterface->Agent_GetInfo();
+	m_pAgentInfo = &m_pInterface->Agent_GetInfo();
 
 	auto nextTargetPos = m_Target; //To start you can use the mouse position as guidance
 
-	auto vHousesInFOV = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
-	auto vEntitiesInFOV = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
+	m_VHouseInfo = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
+	m_VEntityInfo = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
 
-	for (auto& e : vEntitiesInFOV)
+	for (auto& e : m_VEntityInfo)
 	{
 		if (e.Type == eEntityType::PURGEZONE)
 		{
@@ -164,58 +234,57 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 		}
 	}
 
+	////INVENTORY USAGE DEMO
+	////********************
 
-	//INVENTORY USAGE DEMO
-	//********************
+	//if (m_GrabItem)
+	//{
+	//	ItemInfo item;
+	//	//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
+	//	//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
+	//	//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
+	//	//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
+	//	if (m_pInterface->Item_Grab({}, item))
+	//	{
+	//		//Once grabbed, you can add it to a specific inventory slot
+	//		//Slot must be empty
+	//		m_pInterface->Inventory_AddItem(0, item);
+	//	}
+	//}
 
-	if (m_GrabItem)
-	{
-		ItemInfo item;
-		//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
-		//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
-		//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
-		//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
-		if (m_pInterface->Item_Grab({}, item))
-		{
-			//Once grabbed, you can add it to a specific inventory slot
-			//Slot must be empty
-			m_pInterface->Inventory_AddItem(0, item);
-		}
-	}
+	//if (m_UseItem)
+	//{
+	//	//Use an item (make sure there is an item at the given inventory slot)
+	//	m_pInterface->Inventory_UseItem(0);
+	//}
 
-	if (m_UseItem)
-	{
-		//Use an item (make sure there is an item at the given inventory slot)
-		m_pInterface->Inventory_UseItem(0);
-	}
+	//if (m_RemoveItem)
+	//{
+	//	//Remove an item from a inventory slot
+	//	m_pInterface->Inventory_RemoveItem(0);
+	//}
 
-	if (m_RemoveItem)
-	{
-		//Remove an item from a inventory slot
-		m_pInterface->Inventory_RemoveItem(0);
-	}
+	////Simple Seek Behaviour (towards Target)
+	//steering.LinearVelocity = nextTargetPos - m_pAgentInfo->Position; //Desired Velocity
+	//steering.LinearVelocity.Normalize(); //Normalize Desired Velocity
+	//steering.LinearVelocity *= m_pAgentInfo->MaxLinearSpeed; //Rescale to Max Speed
 
-	//Simple Seek Behaviour (towards Target)
-	steering.LinearVelocity = nextTargetPos - agentInfo.Position; //Desired Velocity
-	steering.LinearVelocity.Normalize(); //Normalize Desired Velocity
-	steering.LinearVelocity *= agentInfo.MaxLinearSpeed; //Rescale to Max Speed
+	//if (Distance(nextTargetPos, m_pAgentInfo->Position) < 2.f)
+	//{
+	//	steering.LinearVelocity = Elite::ZeroVector2;
+	//}
 
-	if (Distance(nextTargetPos, agentInfo.Position) < 2.f)
-	{
-		steering.LinearVelocity = Elite::ZeroVector2;
-	}
+	////steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
+	//steering.AutoOrient = true; //Setting AutoOrientate to TRue overrides the AngularVelocity
 
-	//steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
-	steering.AutoOrient = true; //Setting AutoOrientate to TRue overrides the AngularVelocity
+	//steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
 
-	steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
+	//							 //SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
 
-								 //SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
-
-								 //@End (Demo Purposes)
-	m_GrabItem = false; //Reset State
-	m_UseItem = false;
-	m_RemoveItem = false;
+	//							 //@End (Demo Purposes)
+	//m_GrabItem = false; //Reset State
+	//m_UseItem = false;
+	//m_RemoveItem = false;
 
 	return steering;
 }
