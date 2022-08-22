@@ -11,6 +11,7 @@
 // Includes & Forward Declarations
 //-----------------------------------------------------------------
 
+#include "IExamPlugin.h"
 #include "Exam_HelperStructs.h"
 
 #pragma region **ISTEERINGBEHAVIOR** (BASE)

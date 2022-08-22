@@ -15,10 +15,21 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 
 	//Bit information about the plugin
 	//Please fill this in!!
-	info.BotName = "BotNameTEST";
-	info.Student_FirstName = "Foo";
-	info.Student_LastName = "Bar";
-	info.Student_Class = "2DAEx";
+	info.BotName = "Wally";
+	info.Student_FirstName = "Wout";
+	info.Student_LastName = "De Bolster";
+	info.Student_Class = "2DAE14";
+
+	// steering init
+	m_pSeek = new Seek();
+	m_pWander = new Wander();
+	m_pFlee = new Flee();
+	m_pArrive = new Arrive();
+	m_pFace = new Face();
+	m_pEvade = new Evade();
+	m_pPursuit = new Pursuit();
+	m_pEvade = new Evade();
+	m_pScout = new Scout();
 
 	Elite::Blackboard* pB = new Elite::Blackboard();
 
@@ -43,7 +54,7 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 	pB->AddData("Angular", static_cast<ISteeringBehavior**>(&m_pAngularBehaviour));
 
 	// other things
-	pB->AddData("Agent", static_cast<AgentInfo*>(m_pAgentInfo));
+	pB->AddData("Agent", static_cast<AgentInfo*>(&m_AgentInfo));
 
 	pB->AddData("Houses", static_cast<vector<HouseInfo>*>(&m_VHouseInfo));
 	pB->AddData("Entities", static_cast<vector<EntityInfo>*>(&m_VEntityInfo));
@@ -82,6 +93,37 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 				}),
 				new BehaviorSequence(
 				{
+				new BehaviorConditional(AgentBittenHasStamina),
+				new BehaviorAction(RunFlee)
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(InventoryFull),
+					new BehaviorSelector(
+					{
+						new BehaviorSequence(
+						{
+							new BehaviorConditional(InGrabRange),
+							new BehaviorAction(GrabItem)
+						}),
+						new BehaviorAction(SeekItems) // add seek to house
+					})
+				}),
+				new BehaviorSequence(
+				{
+					new BehaviorConditional(InsideHouse),
+					new BehaviorSelector(
+					{
+						new BehaviorAction(ScoutWander),
+						new BehaviorSequence(
+						{
+							new BehaviorConditional(ItemInFov),
+							new BehaviorAction(SeekItems)
+						}),
+					})
+				}),
+				new BehaviorSequence(
+				{
 					new BehaviorConditional(EnemyInFOV),
 					new BehaviorSelector(
 					{
@@ -105,27 +147,13 @@ void Plugin::Initialize(IBaseInterface* pInterface, PluginInfo& info)
 						})
 					})
 				}),
-				new BehaviorSequence(
-				{
-					new BehaviorConditional(AgentBittenHasStamina),
-					new BehaviorAction(RunFlee)
-				}),
-				new BehaviorSequence(
-				{
-					new BehaviorConditional(InventoryFull),
-					new BehaviorSelector(
-					{
-						new BehaviorSequence(
-						{
-							new BehaviorConditional(InGrabRange),
-							new BehaviorAction(GrabItem)
-						}),
-						new BehaviorAction(SeekItems)
-					})
-				}),
 				new BehaviorAction(ScoutWander)
 			})
 	);
+
+	m_pCurrentDecisionMaking = pBT;
+	m_pSteeringBehaviour = m_pWander;
+	m_pAngularBehaviour = m_pScout;
 }
 
 //Called only once
@@ -134,20 +162,6 @@ void Plugin::DllInit()
 	////Called when the plugin is loaded
 	//AgentInfo* pWally{ &m_pInterface->Agent_GetInfo() };
 	//m_pAgentInfo = pWally;
-
-	// steering init
-	m_pSeek = new Seek();
-	m_pWander = new Wander();
-	m_pFlee = new Flee();
-	m_pArrive = new Arrive();
-	m_pFace = new Face();
-	m_pEvade = new Evade();
-	m_pPursuit = new Pursuit();
-	m_pEvade = new Evade();
-	m_pScout = new Scout();
-
-	m_pSteeringBehaviour = m_pWander;
-	m_pAngularBehaviour = m_pScout;
 }
 
 //Called only once
@@ -214,15 +228,17 @@ void Plugin::Update(float dt)
 //This function calculates the new SteeringOutput, called once per frame
 SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 {
-	auto steering = SteeringPlugin_Output();
-
 	//Use the Interface (IAssignmentInterface) to 'interface' with the AI_Framework
-	m_pAgentInfo = &m_pInterface->Agent_GetInfo();
+	m_AgentInfo = m_pInterface->Agent_GetInfo();
 
-	auto nextTargetPos = m_Target; //To start you can use the mouse position as guidance
+	//auto nextTargetPos = m_Target; //To start you can use the mouse position as guidance
 
 	m_VHouseInfo = GetHousesInFOV();//uses m_pInterface->Fov_GetHouseByIndex(...)
 	m_VEntityInfo = GetEntitiesInFOV(); //uses m_pInterface->Fov_GetEntityByIndex(...)
+
+	m_pCurrentDecisionMaking->Update(dt);
+	m_Steering.LinearVelocity = m_pSteeringBehaviour->CalculateSteering(dt, &m_AgentInfo).LinearVelocity;
+	m_Steering.AngularVelocity = m_pAngularBehaviour->CalculateSteering(dt, &m_AgentInfo).AngularVelocity;
 
 	for (auto& e : m_VEntityInfo)
 	{
@@ -234,35 +250,35 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 		}
 	}
 
-	////INVENTORY USAGE DEMO
-	////********************
+	//INVENTORY USAGE DEMO
+	//********************
 
-	//if (m_GrabItem)
-	//{
-	//	ItemInfo item;
-	//	//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
-	//	//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
-	//	//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
-	//	//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
-	//	if (m_pInterface->Item_Grab({}, item))
-	//	{
-	//		//Once grabbed, you can add it to a specific inventory slot
-	//		//Slot must be empty
-	//		m_pInterface->Inventory_AddItem(0, item);
-	//	}
-	//}
+	if (m_GrabItem)
+	{
+		ItemInfo item;
+		//Item_Grab > When DebugParams.AutoGrabClosestItem is TRUE, the Item_Grab function returns the closest item in range
+		//Keep in mind that DebugParams are only used for debugging purposes, by default this flag is FALSE
+		//Otherwise, use GetEntitiesInFOV() to retrieve a vector of all entities in the FOV (EntityInfo)
+		//Item_Grab gives you the ItemInfo back, based on the passed EntityHash (retrieved by GetEntitiesInFOV)
+		if (m_pInterface->Item_Grab({}, item))
+		{
+			//Once grabbed, you can add it to a specific inventory slot
+			//Slot must be empty
+			m_pInterface->Inventory_AddItem(0, item);
+		}
+	}
 
-	//if (m_UseItem)
-	//{
-	//	//Use an item (make sure there is an item at the given inventory slot)
-	//	m_pInterface->Inventory_UseItem(0);
-	//}
+	if (m_UseItem)
+	{
+		//Use an item (make sure there is an item at the given inventory slot)
+		m_pInterface->Inventory_UseItem(0);
+	}
 
-	//if (m_RemoveItem)
-	//{
-	//	//Remove an item from a inventory slot
-	//	m_pInterface->Inventory_RemoveItem(0);
-	//}
+	if (m_RemoveItem)
+	{
+		//Remove an item from a inventory slot
+		m_pInterface->Inventory_RemoveItem(0);
+	}
 
 	////Simple Seek Behaviour (towards Target)
 	//steering.LinearVelocity = nextTargetPos - m_pAgentInfo->Position; //Desired Velocity
@@ -274,19 +290,19 @@ SteeringPlugin_Output Plugin::UpdateSteering(float dt)
 	//	steering.LinearVelocity = Elite::ZeroVector2;
 	//}
 
-	////steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
-	//steering.AutoOrient = true; //Setting AutoOrientate to TRue overrides the AngularVelocity
+	//steering.AngularVelocity = m_AngSpeed; //Rotate your character to inspect the world while walking
+	m_Steering.AutoOrient = true; //Setting AutoOrientate to TRue overrides the AngularVelocity
 
-	//steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
+	m_Steering.RunMode = m_CanRun; //If RunMode is True > MaxLinSpd is increased for a limited time (till your stamina runs out)
 
-	//							 //SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
+								 //SteeringPlugin_Output is works the exact same way a SteeringBehaviour output
 
-	//							 //@End (Demo Purposes)
-	//m_GrabItem = false; //Reset State
-	//m_UseItem = false;
-	//m_RemoveItem = false;
+								 //@End (Demo Purposes)
+	m_GrabItem = false; //Reset State
+	m_UseItem = false;
+	m_RemoveItem = false;
 
-	return steering;
+	return m_Steering;
 }
 
 //This function should only be used for rendering debug elements

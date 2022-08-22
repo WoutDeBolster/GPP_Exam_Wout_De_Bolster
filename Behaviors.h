@@ -8,12 +8,8 @@
 //-----------------------------------------------------------------
 // Includes & Forward Declarations
 //-----------------------------------------------------------------
-#include "stdafx.h"
-#include "Exam_HelperStructs.h"
-#include "Behaviors.h"
 #include "EBehaviorTree.h"
 #include "SteeringBehaviors.h"
-#include "EBlackboard.h"
 #include "IExamInterface.h"
 
 //-----------------------------------------------------------------
@@ -469,15 +465,13 @@ bool InGrabRange(Elite::Blackboard* pBlackboard)
 	return Elite::BehaviorState::Failure;
 }
 
-// inside house
-// not done!!!
-bool InsideHouse(Elite::Blackboard* pBlackboard)
+bool ItemInFov(Elite::Blackboard* pBlackboard)
 {
 	AgentInfo* pAgent{};
-	vector<HouseInfo>* pVHouseInfo{};
+	vector<EntityInfo>* pVEntetyInfo{};
 	IExamInterface* pInterface{};
 
-	auto dataAvailable = pBlackboard->GetData("houseTarget", pVHouseInfo) &&
+	auto dataAvailable = pBlackboard->GetData("Entities", pVEntetyInfo) &&
 		pBlackboard->GetData("Interface", pInterface) &&
 		pBlackboard->GetData("Agent", pAgent);
 
@@ -486,18 +480,48 @@ bool InsideHouse(Elite::Blackboard* pBlackboard)
 		return Elite::BehaviorState::Failure;
 	}
 
-	//// square detection
-	//PurgeZoneInfo zoneInfo;
-	//for (auto& h : *pVHouseInfo)
-	//{
-	//	const Elite::Vector2 DangerRadius{ h.Size };
-	//	const float distance{ DistanceSquared(pAgent->Position, h.Center) };
-	//	if (DistanceSquared(pAgent->Position, h.Center) < (DangerRadius * DangerRadius))
-	//	{
-	//		pBlackboard->ChangeData("houseTarget", h);
-	//		return Elite::BehaviorState::Success;
-	//	}
-	//}
+	ItemInfo item;
+	for (auto& e : *pVEntetyInfo)
+	{
+		if (e.Type == eEntityType::ITEM)
+		{
+			pInterface->Item_GetInfo(e, item);
+			pBlackboard->ChangeData("ItemTarget", item);
+			return Elite::BehaviorState::Success;
+		}
+	}
+
+	return Elite::BehaviorState::Failure;
+}
+
+// inside house
+bool InsideHouse(Elite::Blackboard* pBlackboard)
+{
+	AgentInfo* pAgent{};
+	vector<HouseInfo>* pVHouseInfo{};
+	IExamInterface* pInterface{};
+
+	auto dataAvailable = pBlackboard->GetData("Houses", pVHouseInfo) &&
+		pBlackboard->GetData("Interface", pInterface) &&
+		pBlackboard->GetData("Agent", pAgent);
+
+	if (!dataAvailable)
+	{
+		return Elite::BehaviorState::Failure;
+	}
+
+	// square detection
+	PurgeZoneInfo zoneInfo;
+	for (auto& h : *pVHouseInfo)
+	{
+		const Elite::Vector2 DangerRadius{ h.Size };
+		const float distance{ DistanceSquared(pAgent->Position, h.Center) };
+		if (DistanceSquared(pAgent->Position, h.Center) < DangerRadius.x)
+		{
+			pBlackboard->ChangeData("houseTarget", h);
+			return Elite::BehaviorState::Success;
+		}
+	}
 
 	return Elite::BehaviorState::Failure;
 }
@@ -527,7 +551,7 @@ bool LowStamina(Elite::Blackboard* pBlackboard)
 
 Elite::BehaviorState ChangeToSeek(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pSeek = nullptr;
+	Seek* pSeek = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	Elite::Vector2 seekTarget{};
 	auto dataAvailable = pBlackboard->GetData("Seek", pSeek) &&
@@ -547,7 +571,7 @@ Elite::BehaviorState ChangeToSeek(Elite::Blackboard* pBlackboard)
 
 Elite::BehaviorState ChangeToWander(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pWander = nullptr;
+	Wander* pWander = nullptr;
 	ISteeringBehavior* pScouting = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	ISteeringBehavior** ppAngular = nullptr;
@@ -569,7 +593,7 @@ Elite::BehaviorState ChangeToWander(Elite::Blackboard* pBlackboard)
 
 Elite::BehaviorState ChangeToArrive(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pArrive = nullptr;
+	Arrive* pArrive = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	Elite::Vector2 ArriveTarget{};
 	auto dataAvailable = pBlackboard->GetData("Arrive", pArrive) &&
@@ -583,46 +607,6 @@ Elite::BehaviorState ChangeToArrive(Elite::Blackboard* pBlackboard)
 
 	pArrive->SetTargetPos(ArriveTarget);
 	*ppSteering = pArrive;
-
-	return Elite::BehaviorState::Success;
-}
-
-Elite::BehaviorState ChangeToEvade(Elite::Blackboard* pBlackboard)
-{
-	ISteeringBehavior* pEvade = nullptr;
-	ISteeringBehavior** ppSteering = nullptr;
-	Elite::Vector2 EvadeTarget{};
-	auto dataAvailable = pBlackboard->GetData("fleeTarget", pEvade) &&
-		pBlackboard->GetData("Steering", ppSteering) &&
-		pBlackboard->GetData("Target", EvadeTarget);
-
-	if (!dataAvailable)
-	{
-		return Elite::BehaviorState::Failure;
-	}
-
-	pEvade->SetTargetPos(EvadeTarget);
-	*ppSteering = pEvade;
-
-	return Elite::BehaviorState::Success;
-}
-
-Elite::BehaviorState ChangeToPursuit(Elite::Blackboard* pBlackboard)
-{
-	ISteeringBehavior* pPursuit = nullptr;
-	ISteeringBehavior** ppSteering = nullptr;
-	Elite::Vector2 PursuitTarget{};
-	auto dataAvailable = pBlackboard->GetData("Pursuit", pPursuit) &&
-		pBlackboard->GetData("Steering", ppSteering) &&
-		pBlackboard->GetData("Target", PursuitTarget);
-
-	if (!dataAvailable)
-	{
-		return Elite::BehaviorState::Failure;
-	}
-
-	pPursuit->SetTargetPos(PursuitTarget);
-	*ppSteering = pPursuit;
 
 	return Elite::BehaviorState::Success;
 }
@@ -687,7 +671,7 @@ Elite::BehaviorState UseFood(Elite::Blackboard* pBlackboard)
 // purgeZone
 Elite::BehaviorState ChangeToFlee(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pFlee = nullptr;
+	Flee* pFlee = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	Elite::Vector2 FleeTarget{};
 	auto dataAvailable = pBlackboard->GetData("Flee", pFlee) &&
@@ -708,14 +692,14 @@ Elite::BehaviorState ChangeToFlee(Elite::Blackboard* pBlackboard)
 // enemy
 Elite::BehaviorState RunFlee(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pFlee = nullptr;
+	Flee* pFlee = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	AgentInfo* pAgent{};
 	Elite::Vector2 FleeTarget{};
 
 	auto dataAvailable = pBlackboard->GetData("Flee", pFlee) &&
 		pBlackboard->GetData("Steering", ppSteering) &&
-		pBlackboard->GetData("EnemyTarget", FleeTarget) &&
+		pBlackboard->GetData("fleeTarget", FleeTarget) &&
 		pBlackboard->GetData("Agent", pAgent);
 
 	if (!dataAvailable)
@@ -729,15 +713,16 @@ Elite::BehaviorState RunFlee(Elite::Blackboard* pBlackboard)
 
 	// run
 	pAgent->RunMode = true;
+	pBlackboard->ChangeData("Agent", pAgent);
 
 	return Elite::BehaviorState::Success;
 }
 
 Elite::BehaviorState FaceToClosestEnemy(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pFace = nullptr;
+	Face* pFace = nullptr;
 	ISteeringBehavior** ppAngular = nullptr;
-	Elite::Vector2 FaceTarget{};
+	EntityInfo FaceTarget{};
 	auto dataAvailable = pBlackboard->GetData("Face", pFace) &&
 		pBlackboard->GetData("Angular", ppAngular) &&
 		pBlackboard->GetData("EnemyTarget", FaceTarget);
@@ -747,7 +732,7 @@ Elite::BehaviorState FaceToClosestEnemy(Elite::Blackboard* pBlackboard)
 		return Elite::BehaviorState::Failure;
 	}
 
-	pFace->SetTargetPos(FaceTarget);
+	pFace->SetTargetPos(FaceTarget.Location);
 	*ppAngular = pFace;
 
 	return Elite::BehaviorState::Success;
@@ -789,7 +774,7 @@ Elite::BehaviorState ShootClosestEnemy(Elite::Blackboard* pBlackboard)
 // get items
 Elite::BehaviorState SeekItems(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pSeek = nullptr;
+	Seek* pSeek = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	EntityInfo seekTarget{};
 	auto dataAvailable = pBlackboard->GetData("Seek", pSeek) &&
@@ -866,12 +851,12 @@ Elite::BehaviorState StopRunning(Elite::Blackboard* pBlackboard)
 
 Elite::BehaviorState ScoutWander(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pWander = nullptr;
-	ISteeringBehavior* pScouting = nullptr;
+	Wander* pWander = nullptr;
+	Scout* pScouting = nullptr;
 	ISteeringBehavior** ppSteering = nullptr;
 	ISteeringBehavior** ppAngular = nullptr;
 	auto dataAvailable = pBlackboard->GetData("Wander", pWander) &&
-		pBlackboard->GetData("Scouting", pScouting) &&
+		pBlackboard->GetData("Scout", pScouting) &&
 		pBlackboard->GetData("Steering", ppSteering) &&
 		pBlackboard->GetData("Angular", ppAngular);
 
@@ -888,9 +873,9 @@ Elite::BehaviorState ScoutWander(Elite::Blackboard* pBlackboard)
 
 Elite::BehaviorState Radar(Elite::Blackboard* pBlackboard)
 {
-	ISteeringBehavior* pScouting = nullptr;
+	Scout* pScouting = nullptr;
 	ISteeringBehavior** ppAngular = nullptr;
-	auto dataAvailable = pBlackboard->GetData("Scouting", pScouting) &&
+	auto dataAvailable = pBlackboard->GetData("Scout", pScouting) &&
 		pBlackboard->GetData("Angular", ppAngular);
 
 	if (!dataAvailable)

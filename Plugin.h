@@ -5,6 +5,7 @@
 #include "EDecisionMaking.h"
 #include "SteeringBehaviors.h"
 
+class ISteeringBehavior;
 class IBaseInterface;
 class IExamInterface;
 
@@ -40,12 +41,10 @@ private:
 
 		// agent stuff
 	Elite::Vector2 m_Target = {};
-	AgentInfo* m_pAgentInfo = nullptr;
-
-	// behavior stuf
-	Elite::IDecisionMaking* m_pDesitionMaking = nullptr;
+	AgentInfo m_AgentInfo;
 
 	// steering stuf
+	SteeringPlugin_Output m_Steering{};
 	Seek* m_pSeek = nullptr;
 	Wander* m_pWander = nullptr;
 	Flee* m_pFlee = nullptr;
@@ -57,7 +56,9 @@ private:
 
 	ISteeringBehavior* m_pSteeringBehaviour = nullptr;
 	ISteeringBehavior* m_pAngularBehaviour = nullptr;
+	Elite::IDecisionMaking* m_pCurrentDecisionMaking = nullptr;
 };
+
 
 //ENTRY
 //This is the first function that is called by the host program
